@@ -65,18 +65,36 @@ In-memory and JSON-file were considered; SQLite was chosen for durability and mi
 
 ## Prompts used
 
-### While building (AI coding tools)
+*(For understanding the workflow; they don’t have to be perfect.)*
+
+### 1. Prompts sent to AI coding tools for help
 
 - "Build a small service with two endpoints: POST /scan (fetch and cache GitHub issues) and POST /analyze (analyze cached issues with an LLM). Use TypeScript and Express."
 - "Use SQLite for local caching. Document storage choice in README."
 - "Handle edge cases: repo not scanned, no issues cached, LLM errors."
+- "OpenAI quota exceeded – suggest other LLM options and add support for Groq/Gemini/Ollama."
+- "Server still using OpenAI even though I set LLM_PROVIDER=groq – fix or explain."
+- "What else needs to be tested? Ensure we have everything for the form deliverables."
 
-### For the analyze endpoint (LLM request design)
+### 2. Prompts used to design the code, fix errors, or generate logic
 
-- System: "You are an assistant analyzing GitHub issues for the repository. You will be given a list of open issues. Answer the user's question based only on these issues. Be concise and actionable."
-- User content: "Cached open issues for {repo}: [formatted issues]. User request: {prompt}"
+- "Implement POST /scan: fetch from GitHub REST API, paginate, exclude PRs, store id/title/body/html_url/created_at."
+- "Implement POST /analyze: look up cached issues, combine with user prompt, call LLM, return { analysis }. Validate repo and prompt."
+- "Return 404 when repo not scanned; return a clear message when no issues cached; surface LLM/API errors in the response."
+- "Add startup log so we can see which LLM provider is active (e.g. groq vs openai)."
+- "Add support for multiple LLM providers via env (openai, groq, ollama, gemini) so we can switch when one hits quota."
 
-Example user prompts to try:
+### 3. Prompts used for constructing the final LLM request inside the analyze endpoint
+
+**System message (instructions to the LLM):**
+
+- "You are an assistant analyzing GitHub issues for the repository \"{repo}\". You will be given a list of open issues (id, title, body excerpt, URL, created_at). Answer the user's question based only on these issues. Be concise and actionable."
+
+**User message (what we send each time):**
+
+- "Cached open issues for {repo}: [formatted issue list]. --- User request: {user's prompt}"
+
+**Example user prompts (what callers can pass in the `/analyze` request body):**
 
 - "Find themes across recent issues and recommend what the maintainers should fix first."
 - "Summarize the top 3 recurring complaints."
